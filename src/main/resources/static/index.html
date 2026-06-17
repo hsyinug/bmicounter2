@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 智能 BMI 預測與健康管理系統</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f7fb;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 600px;
+            width: 100%;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        h2, h3 {
+            color: #2c3e50;
+            margin-top: 0;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #eef7fe;
+            border-left: 5px solid #3498db;
+        }
+        .ai-box {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #fdf2f2;
+            border-left: 5px solid #e74c3c;
+        }
+        .history-section {
+            max-width: 600px;
+            width: 100%;
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .history-item {
+            background: #f8f9fa;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid #2ecc71;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📊 AI 智能 BMI 健康預測管理系統</h2>
+        <p style="color: #7f8c8d; font-size: 14px;">期末個人實戰演練 — 四合一完整架構驗證</p>
+        <hr style="border: 0; height: 1px; background: #eee; margin-bottom: 20px;">
+        
+        <div class="form-group">
+            <label for="height">身高 (cm)：</label>
+            <input type="number" id="height" placeholder="請輸入身高，例如：170" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="weight">體重 (kg)：</label>
+            <input type="number" id="weight" placeholder="請輸入體重，例如：65" required>
+        </div>
+        
+        <button onclick="calculateBMI()">🚀 開始智慧計算與 AI 分析</button>
+
+        <div id="result-area" style="display: none;">
+            <div class="result-box" id="result"></div>
+            <div class="ai-box" id="ai-prediction"></div>
+        </div>
+    </div>
+
+    <div class="history-section">
+        <h3>💾 歷史測量紀錄 (實時從 Database SQL 讀取)</h3>
+        <div id="history-box">
+            <p style="color: #95a5a6; font-size: 14px;">暫無測量歷史紀錄</p>
+        </div>
+    </div>
+
+    <script>
+        async function calculateBMI() {
+            const heightInput = document.getElementById('height').value;
+            const weightInput = document.getElementById('weight').value;
+
+            if (!heightInput || !weightInput) {
+                alert('請先輸入完整的身高與體重！');
+                return;
+            }
+
+            // 1. 前端呼叫 Java 後端 RESTful API 接口 (POST 送出 JSON)
+            const response = await fetch('/api/bmi', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ height: parseFloat(heightInput), weight: parseFloat(weightInput) })
+            });
+
+            const data = await response.json();
+
+            // 2. 將計算結果與 DM/ML 預測分析結果即時渲染到 UI 畫面上
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('result').innerHTML = `<strong>計算結果：</strong> 您的 BMI 為 <b>${data.bmi}</b>，體位分類判定為：<span style="color:#2980b9; font-weight:bold;">${data.status}</span>`;
+            document.getElementById('ai-prediction').innerHTML = `<strong>🤖 AI 健康風險分類與預測：</strong><br><span style="font-size:14px; line-height:1.5;">${data.aiAdvice}</span>`;
+            
+            // 3. 刷新下方的資料庫歷史紀錄
+            loadHistory();
+        }
+
+        async function loadHistory() {
+            // 前端呼叫 Java 後端 GET 接口從 Database 撈取全部 SQL 數據
+            const response = await fetch('/api/history');
+            const historyData = await response.json();
+            
+            if (historyData.length === 0) return;
+
+            let historyHtml = '<ul class="history-list">';
+            // 將陣列反轉，最新的測量紀錄秀在最上面
+            historyData.reverse().forEach(item => {
+                historyHtml += `
+                    <li class="history-item">
+                        <span><b>單號 #${item.id}</b> | 身高: ${item.height}cm | 體重: ${item.weight}kg</span>
+                        <span><b>BMI: ${item.bmi}</b> (${item.status})</span>
+                    </li>`;
+            });
+            historyHtml += '</ul>';
+            
+            document.getElementById('history-box').innerHTML = historyHtml;
+        }
+
+        // 網頁初次開啟時，自動與資料庫連線載入既有歷史數據
+        window.onload = loadHistory;
+    </script>
+
+</body>
+</html>
